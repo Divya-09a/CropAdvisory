@@ -1,171 +1,105 @@
-// Authentication Service — Supabase Auth Integration
-import { supabase } from './supabaseClient';
+// Authentication Service — Mock Auth using AsyncStorage
+// Data is stored locally on the device
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const USERS_KEY = '@crop_advisory_users';
+const SESSION_KEY = '@crop_advisory_session';
 
 export interface FarmerUser {
   id: string;
   name: string;
   email: string;
+  password: string; // plain text for demo only
   age: number;
   location: string; // Tamil Nadu district name
   crop: string;
   registeredAt: string;
 }
 
-export interface RegisterData {
-  name: string;
+export interface Session {
+  userId: string;
   email: string;
-  password: string;
-  age: number;
-  location: string;
-  crop: string;
+  name: string;
 }
 
-// ─── Register ──────────────────────────────────────────────────────────────────
-export async function registerFarmer(data: RegisterData): Promise<FarmerUser> {
-  const { data: authData, error: signUpError } = await supabase.auth.signUp({
-    email: data.email.trim().toLowerCase(),
-    password: data.password,
-    options: {
-      data: {
-        name: data.name.trim(),
-        age: data.age,
-        location: data.location,
-        crop: data.crop,
-      },
-    },
-  });
+// ─── Demo Credentials (pre-seeded) ────────────────────────────────────────────
+const DEMO_USERS: FarmerUser[] = [
+  {
+    id: 'demo-001',
+    name: 'Ravi Kumar',
+    email: 'ravi@farmer.com',
+    password: '123456',
+    age: 42,
+    location: 'Thanjavur',
+    crop: 'Rice',
+    registeredAt: new Date().toISOString(),
+  },
+  {
+    id: 'demo-002',
+    name: 'Meena Devi',
+    email: 'meena@farmer.com',
+    password: '123456',
+    age: 35,
+    location: 'Coimbatore',
+    crop: 'Sugarcane',
+    registeredAt: new Date().toISOString(),
+  },
+];
 
-  if (signUpError) throw new Error(signUpError.message);
-  if (!authData.user) throw new Error('Registration failed. Please try again.');
-
-  // Upsert profile directly (handles cases where trigger may not fire)
-  const { error: profileError } = await supabase
-    .from('user_profiles')
-    .upsert({
-      id: authData.user.id,
-      name: data.name.trim(),
-      email: data.email.trim().toLowerCase(),
-      age: data.age,
-      location: data.location,
-      crop: data.crop,
-    }, { onConflict: 'id' });
-
-  if (profileError) {
-    // Non-fatal: trigger may have already created it
-    console.warn('Profile upsert warning:', profileError.message);
+async function getUsers(): Promise<FarmerUser[]> {
+  const raw = await AsyncStorage.getItem(USERS_KEY);
+  if (!raw) return DEMO_USERS;
+  const stored: FarmerUser[] = JSON.parse(raw);
+  // Merge demo users if not already present
+  const allUsers = [...DEMO_USERS];
+  for (const u of stored) {
+    if (!allUsers.find(x => x.id === u.id)) allUsers.push(u);
   }
-
-  const profile = await fetchProfile(authData.user.id);
-  return profile;
+  return allUsers;
 }
 
-// ─── Login ─────────────────────────────────────────────────────────────────────
+async function saveUsers(users: FarmerUser[]): Promise<void> {
+  await AsyncStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+export async function registerFarmer(data: Omit<FarmerUser, 'id' | 'registeredAt'>): Promise<FarmerUser> {
+  const users = await getUsers();
+  if (users.find(u => u.email.toLowerCase() === data.email.toLowerCase())) {
+    throw new Error('An account with this email already exists.');
+  }
+  const newUser: FarmerUser = {
+    ...data,
+    id: `user-${Date.now()}`,
+    registeredAt: new Date().toISOString(),
+  };
+  await saveUsers([...users.filter(u => !DEMO_USERS.find(d => d.id === u.id)), newUser]);
+  return newUser;
+}
+
 export async function loginFarmer(email: string, password: string): Promise<FarmerUser> {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.trim().toLowerCase(),
-    password,
-  });
-
-  if (error) {
-    if (error.message.includes('Invalid login credentials')) {
-      throw new Error('Invalid email or password. Please try again.');
-    }
-    throw new Error(error.message);
-  }
-  if (!data.user) throw new Error('Login failed. Please try again.');
-
-  const profile = await fetchProfile(data.user.id);
-  return profile;
+  const users = await getUsers();
+  const user = users.find(
+    u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+  );
+  if (!user) throw new Error('Invalid email or password. Please try again.');
+  await AsyncStorage.setItem(SESSION_KEY, JSON.stringify({ userId: user.id, email: user.email, name: user.name }));
+  return user;
 }
 
-// ─── Logout ────────────────────────────────────────────────────────────────────
 export async function logoutFarmer(): Promise<void> {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw new Error(error.message);
+  await AsyncStorage.removeItem(SESSION_KEY);
 }
 
-// ─── Fetch Profile ─────────────────────────────────────────────────────────────
-export async function fetchProfile(userId: string): Promise<FarmerUser> {
-  // Retry up to 3 times (trigger may have a brief delay)
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (data) {
-      return {
-        id: data.id,
-        name: data.name || 'Farmer',
-        email: data.email || '',
-        age: data.age || 25,
-        location: data.location || 'Chennai',
-        crop: data.crop || 'Rice',
-        registeredAt: data.created_at || new Date().toISOString(),
-      };
-    }
-
-    if (error && error.code !== 'PGRST116') {
-      // Real DB error (not "no rows found")
-      throw new Error(`Database error: ${error.message}`);
-    }
-
-    // Profile not found yet — wait and retry
-    if (attempt < 3) {
-      await new Promise(r => setTimeout(r, 1000 * attempt));
-    }
-  }
-
-  // Final fallback: try to get user metadata from auth session
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.user) {
-    const meta = session.user.user_metadata;
-    const fallbackProfile: FarmerUser = {
-      id: userId,
-      name: meta?.name || session.user.email?.split('@')[0] || 'Farmer',
-      email: session.user.email || '',
-      age: meta?.age || 25,
-      location: meta?.location || 'Chennai',
-      crop: meta?.crop || 'Rice',
-      registeredAt: session.user.created_at || new Date().toISOString(),
-    };
-
-    // Try to create the profile if it still doesn't exist
-    await supabase.from('user_profiles').upsert({
-      id: userId,
-      name: fallbackProfile.name,
-      email: fallbackProfile.email,
-      age: fallbackProfile.age,
-      location: fallbackProfile.location,
-      crop: fallbackProfile.crop,
-    }, { onConflict: 'id' });
-
-    return fallbackProfile;
-  }
-
-  throw new Error('Profile not found. Please try logging in again.');
+export async function getSession(): Promise<Session | null> {
+  const raw = await AsyncStorage.getItem(SESSION_KEY);
+  if (!raw) return null;
+  return JSON.parse(raw);
 }
 
-// ─── Get Current Session User ──────────────────────────────────────────────────
 export async function getCurrentUser(): Promise<FarmerUser | null> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return null;
-
-  try {
-    return await fetchProfile(session.user.id);
-  } catch {
-    return null;
-  }
-}
-
-// ─── Update Profile ────────────────────────────────────────────────────────────
-export async function updateProfile(userId: string, updates: Partial<Pick<FarmerUser, 'name' | 'age' | 'location' | 'crop'>>): Promise<FarmerUser> {
-  const { error } = await supabase
-    .from('user_profiles')
-    .update(updates)
-    .eq('id', userId);
-
-  if (error) throw new Error(error.message);
-  return fetchProfile(userId);
+  const session = await getSession();
+  if (!session) return null;
+  const users = await getUsers();
+  return users.find(u => u.id === session.userId) || null;
 }

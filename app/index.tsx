@@ -1,5 +1,5 @@
 // Landing Page — Weather-Based Crop Advisory System
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   View, Text, StyleSheet, Pressable, Dimensions,
   ScrollView, Platform,
@@ -11,19 +11,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
 import { Colors, Typography, Spacing, Radius, Shadows } from '../constants/theme';
 
+const { width, height } = Dimensions.get('window');
+
 export default function LandingPage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isAuthenticated, isLoading } = useAuth();
-
-  const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
-
-  useEffect(() => {
-    const sub = Dimensions.addEventListener('change', ({ window }) => {
-      setScreenWidth(window.width);
-    });
-    return () => sub?.remove();
-  }, []);
 
   // Auto-redirect if already logged in
   useEffect(() => {
@@ -32,20 +25,11 @@ export default function LandingPage() {
     }
   }, [isAuthenticated, isLoading]);
 
-  // Responsive column count
-  const isTablet = screenWidth >= 600;
-  const isDesktop = screenWidth >= 1024;
-  const horizontalPad = Spacing.md;
-  const numCols = isDesktop ? 4 : isTablet ? 2 : 2;
-  const cardGap = Spacing.sm;
-  const totalGap = cardGap * (numCols - 1);
-  const cardWidth = Math.max(1, (screenWidth - horizontalPad * 2 - totalGap) / numCols);
-
   const features = [
     { emoji: '🌤️', title: 'Real-Time Weather', desc: 'Live weather data for your Tamil Nadu district' },
     { emoji: '🌾', title: 'Rule-Based Advisory', desc: 'Crop guidance using proven agricultural rules' },
-    { emoji: '⚠️', title: 'Risk Alerts', desc: 'Early warnings for temperature, humidity & rainfall' },
-    { emoji: '📊', title: 'Crop Database', desc: '7 major crops with ideal growing parameters' },
+    { emoji: '⚠️', title: 'Risk Alerts', desc: 'Early warnings for temperature, humidity and rainfall' },
+    { emoji: '📊', title: 'Crop Database', desc: '7 major crops with ideal condition parameters' },
   ];
 
   const stats = [
@@ -64,25 +48,18 @@ export default function LandingPage() {
     >
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: insets.top + Spacing.md,
-            paddingHorizontal: horizontalPad,
-            paddingBottom: insets.bottom + Spacing.xxl,
-          },
-        ]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.md }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header Badge */}
         <View style={styles.badgeRow}>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>🎓 Academic Project 2026</Text>
+            <Text style={styles.badgeText}>🎓 Academic Project 2024</Text>
           </View>
         </View>
 
         {/* Hero Image */}
-        <View style={[styles.heroImageContainer, { height: isTablet ? 320 : 220 }]}>
+        <View style={styles.heroImageContainer}>
           <Image
             source={require('../assets/images/hero-farm.png')}
             style={styles.heroImage}
@@ -97,7 +74,7 @@ export default function LandingPage() {
 
         {/* Hero Text */}
         <View style={styles.heroSection}>
-          <Text style={[styles.headline, isTablet && { fontSize: 28 }]}>
+          <Text style={styles.headline}>
             Smart Farming Starts with Knowing Your Weather
           </Text>
           <Text style={styles.subtext}>
@@ -116,13 +93,9 @@ export default function LandingPage() {
         </View>
 
         {/* CTA Buttons */}
-        <View style={[styles.buttonGroup, isTablet && { flexDirection: 'row', gap: Spacing.md }]}>
+        <View style={styles.buttonGroup}>
           <Pressable
-            style={({ pressed }) => [
-              styles.btnPrimary,
-              isTablet && { flex: 1 },
-              pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-            ]}
+            style={({ pressed }) => [styles.btnPrimary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
             onPress={() => router.push('/register')}
           >
             <LinearGradient
@@ -136,11 +109,7 @@ export default function LandingPage() {
           </Pressable>
 
           <Pressable
-            style={({ pressed }) => [
-              styles.btnSecondary,
-              isTablet && { flex: 1 },
-              pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-            ]}
+            style={({ pressed }) => [styles.btnSecondary, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
             onPress={() => router.push('/login')}
           >
             <Text style={styles.btnSecondaryText}>🔑 Farmer Login</Text>
@@ -154,95 +123,31 @@ export default function LandingPage() {
           <Text style={styles.demoText}>Email: meena@farmer.com  |  Password: 123456</Text>
         </View>
 
-        {/* Feature Cards — "What You Get" */}
+        {/* Feature Cards */}
         <Text style={styles.sectionTitle}>What You Get</Text>
-        <View
-          style={[
-            styles.featuresGrid,
-            {
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              gap: cardGap,
-            },
-          ]}
-        >
+        <View style={styles.featuresGrid}>
           {features.map((f, i) => (
-            <View
-              key={i}
-              style={[
-                styles.featureCard,
-                { width: cardWidth },
-              ]}
-            >
-              <View style={styles.featureIconBox}>
-                <Text style={styles.featureEmoji}>{f.emoji}</Text>
-              </View>
+            <View key={i} style={styles.featureCard}>
+              <Text style={styles.featureEmoji}>{f.emoji}</Text>
               <Text style={styles.featureTitle}>{f.title}</Text>
               <Text style={styles.featureDesc}>{f.desc}</Text>
             </View>
           ))}
         </View>
 
-        {/* Project Info Section */}
-        <View style={styles.projectInfoSection}>
-          <Text style={styles.projectInfoTitle}>About This Project</Text>
-          <View style={styles.projectInfoGrid}>
-            <ProjectBadge icon="🏫" label="Type" value="Final Year Project 2026" />
-            <ProjectBadge icon="💡" label="Engine" value="Rule-Based Logic" />
-            <ProjectBadge icon="🗺️" label="Region" value="Tamil Nadu, India" />
-            <ProjectBadge icon="⚡" label="Tech" value="React Native + Supabase" />
-          </View>
-        </View>
-
         {/* Footer */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.xl }]}>
           <Text style={styles.footerText}>
             Weather-Based Crop Advisory System for Farmers
           </Text>
           <Text style={styles.footerSub}>
-            Tamil Nadu Agriculture Department • Final Year Project 2026
+            Tamil Nadu Agriculture Department • Final Year Project
           </Text>
         </View>
       </ScrollView>
     </LinearGradient>
   );
 }
-
-function ProjectBadge({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (
-    <View style={projStyles.badge}>
-      <Text style={projStyles.icon}>{icon}</Text>
-      <Text style={projStyles.label}>{label}</Text>
-      <Text style={projStyles.value}>{value}</Text>
-    </View>
-  );
-}
-
-const projStyles = StyleSheet.create({
-  badge: {
-    width: '48%',
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    marginBottom: Spacing.sm,
-    alignItems: 'flex-start',
-  },
-  icon: { fontSize: 20, marginBottom: 4 },
-  label: {
-    fontSize: Typography.xs,
-    color: 'rgba(255,255,255,0.45)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 2,
-  },
-  value: {
-    fontSize: Typography.sm,
-    color: Colors.white,
-    fontWeight: '600',
-  },
-});
 
 const styles = StyleSheet.create({
   container: {
@@ -252,28 +157,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    // paddingHorizontal and paddingTop applied inline for dynamic sizing
+    paddingHorizontal: Spacing.md,
   },
   badgeRow: {
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
   badge: {
-    backgroundColor: 'rgba(76,175,80,0.2)',
+    backgroundColor: Colors.whiteAlpha20,
     borderRadius: Radius.full,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 2,
+    paddingVertical: Spacing.xs,
     borderWidth: 1,
-    borderColor: 'rgba(76,175,80,0.4)',
+    borderColor: Colors.whiteAlpha20,
   },
   badgeText: {
     fontSize: Typography.xs,
-    color: '#a5d6a7',
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    color: Colors.white,
+    fontWeight: Typography.medium,
   },
   heroImageContainer: {
     width: '100%',
+    height: 220,
     borderRadius: Radius.xl,
     overflow: 'hidden',
     marginBottom: Spacing.lg,
@@ -296,12 +201,11 @@ const styles = StyleSheet.create({
   },
   headline: {
     fontSize: Typography.xl + 2,
-    fontWeight: '800',
+    fontWeight: Typography.extraBold,
     color: Colors.white,
     textAlign: 'center',
     lineHeight: 34,
     marginBottom: Spacing.md,
-    letterSpacing: -0.3,
   },
   subtext: {
     fontSize: Typography.base,
@@ -311,12 +215,12 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: Colors.whiteAlpha10,
     borderRadius: Radius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: Colors.whiteAlpha20,
   },
   statItem: {
     flex: 1,
@@ -324,13 +228,12 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: Typography.xl,
-    fontWeight: '800',
+    fontWeight: Typography.extraBold,
     color: '#a5d6a7',
   },
   statLabel: {
     fontSize: Typography.xs,
     color: Colors.textMuted,
-    marginTop: 2,
   },
   buttonGroup: {
     gap: Spacing.md,
@@ -347,26 +250,24 @@ const styles = StyleSheet.create({
   },
   btnPrimaryText: {
     fontSize: Typography.md,
-    fontWeight: '700',
+    fontWeight: Typography.bold,
     color: Colors.white,
-    letterSpacing: 0.3,
   },
   btnSecondary: {
     borderRadius: Radius.full,
     paddingVertical: 16,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.35)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: Colors.whiteAlpha60,
+    backgroundColor: Colors.whiteAlpha10,
   },
   btnSecondaryText: {
     fontSize: Typography.md,
-    fontWeight: '600',
+    fontWeight: Typography.semiBold,
     color: Colors.white,
-    letterSpacing: 0.3,
   },
   demoBox: {
-    backgroundColor: 'rgba(255,235,59,0.10)',
+    backgroundColor: 'rgba(255,235,59,0.12)',
     borderRadius: Radius.md,
     padding: Spacing.md,
     borderWidth: 1,
@@ -376,7 +277,7 @@ const styles = StyleSheet.create({
   },
   demoTitle: {
     fontSize: Typography.sm,
-    fontWeight: '700',
+    fontWeight: Typography.bold,
     color: '#fff176',
     marginBottom: 6,
   },
@@ -388,80 +289,54 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: Typography.lg,
-    fontWeight: '800',
+    fontWeight: Typography.bold,
     color: Colors.white,
     marginBottom: Spacing.md,
-    letterSpacing: -0.2,
   },
   featuresGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
     marginBottom: Spacing.xl,
-    alignItems: 'stretch',
   },
   featureCard: {
-    backgroundColor: 'rgba(255,255,255,0.09)',
+    width: (width - Spacing.md * 2 - Spacing.sm) / 2,
+    backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg,
     padding: Spacing.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    // No fixed height — equal visual weight via padding
-  },
-  featureIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: Radius.md,
-    backgroundColor: 'rgba(76,175,80,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(76,175,80,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
+    borderColor: Colors.whiteAlpha20,
   },
   featureEmoji: {
-    fontSize: 24,
+    fontSize: 30,
+    marginBottom: Spacing.sm,
   },
   featureTitle: {
-    fontSize: Typography.sm,
-    fontWeight: '700',
+    fontSize: Typography.base,
+    fontWeight: Typography.bold,
     color: Colors.white,
     marginBottom: 4,
-    lineHeight: 18,
   },
   featureDesc: {
     fontSize: Typography.xs,
-    color: 'rgba(255,255,255,0.6)',
+    color: Colors.textMuted,
     lineHeight: 16,
-  },
-  projectInfoSection: {
-    marginBottom: Spacing.xl,
-  },
-  projectInfoTitle: {
-    fontSize: Typography.base,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.6)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: Spacing.md,
-  },
-  projectInfoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
   },
   footer: {
     alignItems: 'center',
     paddingTop: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.12)',
+    borderTopColor: Colors.whiteAlpha20,
   },
   footerText: {
     fontSize: Typography.sm,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.5)',
+    fontWeight: Typography.semiBold,
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   footerSub: {
     fontSize: Typography.xs,
-    color: 'rgba(255,255,255,0.3)',
+    color: Colors.textMuted,
     marginTop: 4,
     textAlign: 'center',
   },
