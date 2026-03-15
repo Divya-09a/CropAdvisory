@@ -60,12 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
         return;
       }
-      if (event === 'SIGNED_IN' && session?.user) {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
         try {
           const profile = await fetchProfile(session.user.id);
           if (mounted) setUser(profile);
-        } catch {
-          if (mounted) setUser(null);
+        } catch (e) {
+          console.warn('Auth state profile fetch error:', e);
+          // Do not clear user if they were already set
+          if (mounted) setIsLoading(false);
         } finally {
           if (mounted) setIsLoading(false);
         }

@@ -36,9 +36,11 @@ export default function ProfileTab() {
 
   if (!user) return null;
 
-  const registeredDate = new Date(user.registeredAt).toLocaleDateString('en-IN', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  });
+  const registeredDate = user.registeredAt
+    ? new Date(user.registeredAt).toLocaleDateString('en-IN', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      })
+    : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
     <LinearGradient
@@ -120,6 +122,7 @@ export default function ProfileTab() {
           <InfoRow icon="psychology" label="Advisory Engine" value="Rule-Based Logic" />
           <InfoRow icon="cloud" label="Weather Source" value="OpenWeatherMap API" />
           <InfoRow icon="storage" label="Database" value="Supabase (PostgreSQL)" />
+          <InfoRow icon="school" label="Academic Year" value="Final Year Project 2026" />
           <InfoRow icon="place" label="Coverage" value="Tamil Nadu, India" />
           <InfoRow icon="grass" label="Crops Covered" value="7 Major Varieties" />
           <InfoRow icon="location-on" label="Districts" value="20 Tamil Nadu Districts" last />

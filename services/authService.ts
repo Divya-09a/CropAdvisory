@@ -38,7 +38,23 @@ export async function registerFarmer(data: RegisterData): Promise<FarmerUser> {
   if (signUpError) throw new Error(signUpError.message);
   if (!authData.user) throw new Error('Registration failed. Please try again.');
 
-  // Fetch the profile created by the trigger
+  // Upsert profile directly (handles cases where trigger may not fire)
+  const { error: profileError } = await supabase
+    .from('user_profiles')
+    .upsert({
+      id: authData.user.id,
+      name: data.name.trim(),
+      email: data.email.trim().toLowerCase(),
+      age: data.age,
+      location: data.location,
+      crop: data.crop,
+    }, { onConflict: 'id' });
+
+  if (profileError) {
+    // Non-fatal: trigger may have already created it
+    console.warn('Profile upsert warning:', profileError.message);
+  }
+
   const profile = await fetchProfile(authData.user.id);
   return profile;
 }
@@ -70,23 +86,65 @@ export async function logoutFarmer(): Promise<void> {
 
 // ─── Fetch Profile ─────────────────────────────────────────────────────────────
 export async function fetchProfile(userId: string): Promise<FarmerUser> {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
+  // Retry up to 3 times (trigger may have a brief delay)
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
 
-  if (error || !data) throw new Error('Failed to load farmer profile.');
+    if (data) {
+      return {
+        id: data.id,
+        name: data.name || 'Farmer',
+        email: data.email || '',
+        age: data.age || 25,
+        location: data.location || 'Chennai',
+        crop: data.crop || 'Rice',
+        registeredAt: data.created_at || new Date().toISOString(),
+      };
+    }
 
-  return {
-    id: data.id,
-    name: data.name,
-    email: data.email,
-    age: data.age,
-    location: data.location,
-    crop: data.crop,
-    registeredAt: data.created_at,
-  };
+    if (error && error.code !== 'PGRST116') {
+      // Real DB error (not "no rows found")
+      throw new Error(`Database error: ${error.message}`);
+    }
+
+    // Profile not found yet — wait and retry
+    if (attempt < 3) {
+      await new Promise(r => setTimeout(r, 1000 * attempt));
+    }
+  }
+
+  // Final fallback: try to get user metadata from auth session
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    const meta = session.user.user_metadata;
+    const fallbackProfile: FarmerUser = {
+      id: userId,
+      name: meta?.name || session.user.email?.split('@')[0] || 'Farmer',
+      email: session.user.email || '',
+      age: meta?.age || 25,
+      location: meta?.location || 'Chennai',
+      crop: meta?.crop || 'Rice',
+      registeredAt: session.user.created_at || new Date().toISOString(),
+    };
+
+    // Try to create the profile if it still doesn't exist
+    await supabase.from('user_profiles').upsert({
+      id: userId,
+      name: fallbackProfile.name,
+      email: fallbackProfile.email,
+      age: fallbackProfile.age,
+      location: fallbackProfile.location,
+      crop: fallbackProfile.crop,
+    }, { onConflict: 'id' });
+
+    return fallbackProfile;
+  }
+
+  throw new Error('Profile not found. Please try logging in again.');
 }
 
 // ─── Get Current Session User ──────────────────────────────────────────────────

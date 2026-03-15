@@ -225,7 +225,7 @@ export default function LoginPage() {
               Weather-Based Crop Advisory System
             </Text>
             <Text style={styles.footerSub}>
-              Rule-Based Logic • Tamil Nadu Agriculture • Final Year Project
+              Rule-Based Logic • Tamil Nadu Agriculture • Final Year Project 2026
             </Text>
           </View>
         </ScrollView>
